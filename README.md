@@ -36,14 +36,22 @@ Acting like an orchestrated team of specialized agents, it handles outline gener
     
     SEMANTIC_SCHOLAR_API_KEY=your_semantic_scholar_api_key
     OPENAI_API_KEY=your_openai_api_key
+    # Optional: OpenAI-compatible endpoint for text and multimodal requests
+    OPENAI_TEXT_BASE_URL=https://your-openai-compatible-endpoint/v1
+
     VERTEX_AI_PROJECT=your_vertex_ai_project
     VERTEX_AI_LOCATION=your_vertex_ai_location
     GEMINI_API_KEY=your_gemini_api_key
+    # Optional: Gemini-compatible endpoints for text/multimodal/PDF and image generation requests
+    GEMINI_TEXT_BASE_URL=https://your-gemini-compatible-text-endpoint
+    GEMINI_IMAGE_BASE_URL=https://your-gemini-compatible-image-endpoint
 
     # if you want to run demo and send emails to yourself at the end, set these 2 fields as well
     SMTP_EMAIL=your_email
     SMTP_PASSWORD=your_password
     ```
+
+    `OPENAI_TEXT_BASE_URL` is used only when the current model-name routing sends a request through the OpenAI-format backend. `GEMINI_TEXT_BASE_URL` is used for Gemini-format text, multimodal, and PDF requests. `GEMINI_IMAGE_BASE_URL` is used for Gemini-format image generation in diagram generation. These values can also be overridden per run with `--openai_text_base_url`, `--gemini_text_base_url`, and `--gemini_image_base_url`.
 
 ## Dataset
 

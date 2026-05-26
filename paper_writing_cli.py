@@ -86,8 +86,32 @@ def main():
         default=3,
         help="Maximum rounds of self-correction in the plotting agent.",
     )
+    parser.add_argument(
+        "--openai_text_base_url",
+        default=None,
+        help="Optional base URL for OpenAI-format text and multimodal requests.",
+    )
+    parser.add_argument(
+        "--gemini_text_base_url",
+        default=None,
+        help="Optional base URL for Gemini-format text, multimodal, and PDF requests.",
+    )
+    parser.add_argument(
+        "--gemini_image_base_url",
+        default=None,
+        help="Optional base URL for Gemini-format image generation requests.",
+    )
 
     args = parser.parse_args()
+
+    base_url_overrides = {
+        "OPENAI_TEXT_BASE_URL": args.openai_text_base_url,
+        "GEMINI_TEXT_BASE_URL": args.gemini_text_base_url,
+        "GEMINI_IMAGE_BASE_URL": args.gemini_image_base_url,
+    }
+    for env_var, value in base_url_overrides.items():
+        if value:
+            os.environ[env_var] = value
 
     if args.research_cutoff is None:
         args.research_cutoff = datetime.now().strftime("%Y-%m")

@@ -31,7 +31,13 @@ openai_api_key = os.environ.get("OPENAI_API_KEY")
 if not openai_api_key:
     raise ValueError("OPENAI_API_KEY must be set.")
 
-openai_client = OpenAI(api_key=openai_api_key)
+openai_text_base_url = os.environ.get("OPENAI_TEXT_BASE_URL")
+
+openai_client_args = {"api_key": openai_api_key}
+if openai_text_base_url:
+    openai_client_args["base_url"] = openai_text_base_url
+
+openai_client = OpenAI(**openai_client_args)
 
 
 def parse_openai_json_results(response: str):

@@ -31,21 +31,58 @@ dotenv.load_dotenv(dot_file)
 vertex_ai_project = os.getenv("VERTEX_AI_PROJECT")
 vertex_ai_location = os.getenv("VERTEX_AI_LOCATION")
 gemini_api_key = os.getenv("GEMINI_API_KEY")
+gemini_text_base_url = os.getenv("GEMINI_TEXT_BASE_URL")
+gemini_image_base_url = os.getenv("GEMINI_IMAGE_BASE_URL")
 
-if vertex_ai_project and vertex_ai_location:
-    print(
-        f"Using Vertex AI configuration. Project: {vertex_ai_project}, Location: {vertex_ai_location}"
+
+def _get_gemini_http_options(base_url: str = None):
+    if not base_url:
+        return None
+
+    http_options = {"base_url": base_url}
+    resource_scope = getattr(types, "ResourceScope", None)
+    collection_scope = (
+        getattr(resource_scope, "COLLECTION", None) if resource_scope else None
     )
-    genai_client = genai.Client(
-        vertexai=True, project=vertex_ai_project, location=vertex_ai_location
-    )
-elif gemini_api_key:
-    print("Using Gemini API Key configuration.")
-    genai_client = genai.Client(api_key=gemini_api_key)
-else:
+    if collection_scope is not None:
+        http_options["base_url_resource_scope"] = collection_scope
+    return http_options
+
+
+def _create_genai_client(base_url: str = None, client_name: str = "Gemini"):
+    http_options = _get_gemini_http_options(base_url)
+    client_kwargs = {}
+    if http_options is not None:
+        client_kwargs["http_options"] = http_options
+
+    if vertex_ai_project and vertex_ai_location:
+        print(
+            f"Using Vertex AI configuration for {client_name}. Project: {vertex_ai_project}, Location: {vertex_ai_location}"
+        )
+        return genai.Client(
+            vertexai=True,
+            project=vertex_ai_project,
+            location=vertex_ai_location,
+            **client_kwargs,
+        )
+    if gemini_api_key:
+        print(f"Using Gemini API Key configuration for {client_name}.")
+        return genai.Client(api_key=gemini_api_key, **client_kwargs)
+
     raise ValueError(
         "Either VERTEX_AI_PROJECT/VERTEX_AI_LOCATION or GEMINI_API_KEY must be set."
     )
+
+
+genai_text_client = _create_genai_client(
+    base_url=gemini_text_base_url, client_name="Gemini text"
+)
+genai_image_client = _create_genai_client(
+    base_url=gemini_image_base_url, client_name="Gemini image"
+)
+
+# Backward-compatible alias for any external code that imports this module global.
+genai_client = genai_text_client
 
 
 def parse_gemini_json_results(response: str):
@@ -153,7 +190,7 @@ def call_gemini_with_contents(
 
     for attempt in range(max_retries):
         try:
-            response = genai_client.models.generate_content(
+            response = genai_text_client.models.generate_content(
                 model=model_name,
                 contents=contents,
                 config=types.GenerateContentConfig(**generation_configs),
@@ -283,7 +320,7 @@ def generate_image_with_gemini(
             }
             config_args.update(generation_configs)
 
-            response = genai_client.models.generate_content(
+            response = genai_image_client.models.generate_content(
                 model=model_name,
                 contents=[types.Part.from_text(text=prompt)],
                 config=types.GenerateContentConfig(**config_args),
