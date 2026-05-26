@@ -38,6 +38,8 @@ Acting like an orchestrated team of specialized agents, it handles outline gener
     OPENAI_API_KEY=your_openai_api_key
     # Optional: OpenAI-compatible endpoint for text and multimodal requests
     OPENAI_TEXT_BASE_URL=https://your-openai-compatible-endpoint/v1
+    # Optional: OpenAI-compatible endpoint for image generation requests
+    OPENAI_IMAGE_BASE_URL=https://your-openai-compatible-image-endpoint/v1
 
     VERTEX_AI_PROJECT=your_vertex_ai_project
     VERTEX_AI_LOCATION=your_vertex_ai_location
@@ -51,7 +53,7 @@ Acting like an orchestrated team of specialized agents, it handles outline gener
     SMTP_PASSWORD=your_password
     ```
 
-    `OPENAI_TEXT_BASE_URL` is used only when the current model-name routing sends a request through the OpenAI-format backend. `GEMINI_TEXT_BASE_URL` is used for Gemini-format text, multimodal, and PDF requests. `GEMINI_IMAGE_BASE_URL` is used for Gemini-format image generation in diagram generation. These values can also be overridden per run with `--openai_text_base_url`, `--gemini_text_base_url`, and `--gemini_image_base_url`.
+    `OPENAI_TEXT_BASE_URL` is used only when the current model-name routing sends text or multimodal requests through the OpenAI-format backend. `OPENAI_IMAGE_BASE_URL` is used for OpenAI-format image generation in diagram generation, and falls back to `OPENAI_TEXT_BASE_URL` if unset. `GEMINI_TEXT_BASE_URL` is used for Gemini-format text, multimodal, and PDF requests. `GEMINI_IMAGE_BASE_URL` is used for Gemini-format image generation in diagram generation. These values can also be overridden per run with `--openai_text_base_url`, `--openai_image_base_url`, `--gemini_text_base_url`, and `--gemini_image_base_url`.
 
 ## Dataset
 
@@ -83,6 +85,7 @@ python paper_writing_cli.py \
 *   `--use_plotting`: Enable the plotting agent workflow to generate figures from code (Default: `False`).
 *   `--writer_model_name`: LLM for writer and literature agents.
 *   `--reflection_model_name`: LLM for reflection agents.
+*   `--image_model_name`: Gemini-format or OpenAI-format image generation model for diagram generation.
 
 ### Interactive Demo
 

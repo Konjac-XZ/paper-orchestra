@@ -78,7 +78,7 @@ def main():
     parser.add_argument(
         "--image_model_name",
         default="gemini-3-pro-image-preview",
-        help="Vision model if required by plotting agent.",
+        help="Gemini-format or OpenAI-format image generation model for diagram generation.",
     )
     parser.add_argument(
         "--plotting_max_critic_rounds",
@@ -90,6 +90,11 @@ def main():
         "--openai_text_base_url",
         default=None,
         help="Optional base URL for OpenAI-format text and multimodal requests.",
+    )
+    parser.add_argument(
+        "--openai_image_base_url",
+        default=None,
+        help="Optional base URL for OpenAI-format image generation requests.",
     )
     parser.add_argument(
         "--gemini_text_base_url",
@@ -106,6 +111,7 @@ def main():
 
     base_url_overrides = {
         "OPENAI_TEXT_BASE_URL": args.openai_text_base_url,
+        "OPENAI_IMAGE_BASE_URL": args.openai_image_base_url,
         "GEMINI_TEXT_BASE_URL": args.gemini_text_base_url,
         "GEMINI_IMAGE_BASE_URL": args.gemini_image_base_url,
     }

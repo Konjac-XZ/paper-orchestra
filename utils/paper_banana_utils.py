@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import base64
 import io
 import re
@@ -31,6 +33,48 @@ from utils.gemini_utils import (
 
 cur_dir = os.path.dirname(os.path.realpath(__file__))
 PB_DIR = os.path.join(cur_dir, "../../PaperBanana")
+
+
+def is_openai_image_model(model_name: str) -> bool:
+    model_name_lower = model_name.lower()
+    return (
+        "gpt" in model_name_lower
+        or model_name_lower.startswith("dall-e")
+        or model_name_lower.startswith(("o1", "o3"))
+    )
+
+
+def generate_image(
+    model_name: str,
+    prompt: str,
+    aspect_ratio: str = "16:9",
+    generation_configs: dict = None,
+    max_retries: int = 5,
+    base_interval_sec: int = 5,
+    save_path: str = None,
+) -> str:
+    if is_openai_image_model(model_name):
+        from utils.openai_utils import generate_image_with_openai
+
+        return generate_image_with_openai(
+            model_name=model_name,
+            prompt=prompt,
+            aspect_ratio=aspect_ratio,
+            generation_configs=generation_configs,
+            max_retries=max_retries,
+            base_interval_sec=base_interval_sec,
+            save_path=save_path,
+        )
+
+    return generate_image_with_gemini(
+        model_name=model_name,
+        prompt=prompt,
+        aspect_ratio=aspect_ratio,
+        generation_configs=generation_configs,
+        max_retries=max_retries,
+        base_interval_sec=base_interval_sec,
+        save_path=save_path,
+    )
 
 # ==========================================
 # PROMPTS
@@ -672,7 +716,7 @@ def generate_figure_visuals(
         # Prompt for diagram image generation
         prompt_text = f"Render an image based on the following detailed description: {figure_description}\n Note that do not include figure titles in the image. Diagram: "
 
-        return generate_image_with_gemini(
+        return generate_image(
             model_name=image_model_name,
             prompt=prompt_text,
             aspect_ratio=aspect_ratio,

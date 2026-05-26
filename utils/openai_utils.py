@@ -12,13 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 from typing import Any
 import re
 import json
 import time
 import os
-import sys
-import cv2  # type: ignore
 import base64
 
 from openai import OpenAI  # type: ignore
@@ -28,16 +28,50 @@ dot_file = os.path.join(os.path.dirname(__file__), "../.env")
 load_dotenv(dot_file)
 
 openai_api_key = os.environ.get("OPENAI_API_KEY")
-if not openai_api_key:
-    raise ValueError("OPENAI_API_KEY must be set.")
-
 openai_text_base_url = os.environ.get("OPENAI_TEXT_BASE_URL")
+openai_image_base_url = os.environ.get("OPENAI_IMAGE_BASE_URL") or openai_text_base_url
 
-openai_client_args = {"api_key": openai_api_key}
-if openai_text_base_url:
-    openai_client_args["base_url"] = openai_text_base_url
 
-openai_client = OpenAI(**openai_client_args)
+def _create_openai_client(base_url: str = None):
+    if not openai_api_key:
+        raise ValueError("OPENAI_API_KEY must be set.")
+
+    client_args = {"api_key": openai_api_key}
+    if base_url:
+        client_args["base_url"] = base_url
+    return OpenAI(**client_args)
+
+
+openai_client = _create_openai_client(openai_text_base_url) if openai_api_key else None
+openai_image_client = (
+    _create_openai_client(openai_image_base_url) if openai_api_key else None
+)
+
+
+def _require_openai_client(client, client_name: str):
+    if client is None:
+        raise ValueError(f"OPENAI_API_KEY must be set to use {client_name}.")
+    return client
+
+
+def _aspect_ratio_to_openai_size(aspect_ratio: str) -> str:
+    if not aspect_ratio:
+        return "auto"
+
+    try:
+        width, height = aspect_ratio.split(":", 1)
+        width_value = float(width)
+        height_value = float(height)
+    except (TypeError, ValueError):
+        return "auto"
+
+    if width_value <= 0 or height_value <= 0:
+        return "auto"
+    if width_value == height_value:
+        return "1024x1024"
+    if width_value > height_value:
+        return "1536x1024"
+    return "1024x1536"
 
 
 def parse_openai_json_results(response: str):
@@ -115,6 +149,7 @@ def call_openai_models_with_content(
 
     for attempt in range(max_retries):
         try:
+            client = _require_openai_client(openai_client, "OpenAI text models")
             messages = []
             if system_prompt:
                 role = "developer" if model_name.startswith(("o1", "o3")) else "system"
@@ -122,7 +157,7 @@ def call_openai_models_with_content(
 
             messages.append({"role": "user", "content": content})
 
-            response = openai_client.chat.completions.create(
+            response = client.chat.completions.create(
                 model=model_name,
                 messages=messages,
                 **generation_configs,
@@ -196,3 +231,91 @@ def get_openai_image_part_from_path(image_path: str):
         }
     ]
     return image_content
+
+
+def generate_image_with_openai(
+    model_name: str,
+    prompt: str,
+    aspect_ratio: str = "16:9",
+    generation_configs: dict = None,
+    max_retries: int = 5,
+    base_interval_sec: int = 5,
+    save_path: str = None,
+) -> str:
+    """
+    Calls the OpenAI Images API for image generation and returns base64.
+    """
+    if generation_configs is None:
+        generation_configs = {}
+
+    gemini_only_config_keys = {
+        "system_instruction",
+        "response_modalities",
+        "image_config",
+        "candidate_count",
+    }
+    image_configs = {
+        key: value
+        for key, value in generation_configs.items()
+        if key not in gemini_only_config_keys
+    }
+    image_configs.setdefault("size", _aspect_ratio_to_openai_size(aspect_ratio))
+    image_configs.setdefault("quality", "auto")
+    if model_name.lower().startswith("dall-e"):
+        image_configs.setdefault("response_format", "b64_json")
+
+    for attempt in range(max_retries):
+        try:
+            client = _require_openai_client(openai_image_client, "OpenAI image models")
+            response = client.images.generate(
+                model=model_name,
+                prompt=prompt,
+                n=1,
+                **image_configs,
+            )
+
+            if not response.data:
+                raise ValueError("Incomplete response from OpenAI Images API.")
+
+            first_image = response.data[0]
+            img_base64 = getattr(first_image, "b64_json", None)
+            if not img_base64:
+                image_url = getattr(first_image, "url", None)
+                if image_url:
+                    raise ValueError(
+                        "OpenAI-compatible image endpoint returned a URL instead of "
+                        "base64 image data. Configure the endpoint to support "
+                        'response_format="b64_json" or return b64_json data.'
+                    )
+                raise ValueError(
+                    "OpenAI Images API response did not include b64_json image data."
+                )
+
+            if save_path:
+                try:
+                    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+                    with open(save_path, "wb") as fh:
+                        fh.write(base64.b64decode(img_base64))
+                    print(f"Image for prompt '{prompt}' saved to {save_path}")
+                except Exception as e:
+                    print(f"Warning: Failed to save image to {save_path}: {e}")
+
+            return img_base64
+        except Exception as e:
+            print(
+                f"Warning: OpenAI API image generation (model={model_name}) failed "
+                f"on attempt {attempt + 1} of {max_retries}. Error: {e}",
+            )
+
+            if attempt + 1 == max_retries:
+                print(
+                    "Error: All retry attempts failed for OpenAI image generation."
+                )
+                raise e
+
+            delay = base_interval_sec * (2 ** (attempt - 1)) if attempt > 0 else 0
+            print(f"Retrying in {delay} seconds...")
+            if delay > 0:
+                time.sleep(delay)
+
+    return None

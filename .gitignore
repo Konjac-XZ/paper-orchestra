@@ -5,3 +5,5 @@
 datasets/*
 paper_output*
 *.zip
+.tmp/
+.antigravitycli/
